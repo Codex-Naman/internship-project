@@ -1,0 +1,8 @@
+chat-app/
+├── node_modules/
+├── public/
+│   ├── chat.html
+│   ├── style.css
+├── server.js
+├── package.json
+└── package-lock.json

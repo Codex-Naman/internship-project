@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-box { height: 400px; overflow-y: scroll; }
+        .chat-container { margin-top: 70px; }
+    </style>
+</head>
+<body>
+    <div class="container chat-container">
+        <div class="row">
+            <div class="col-md-3">
+                <h3>Users</h3>
+                <div class="list-group" id="userList"></div>
+            </div>
+            <div class="col-md-9">
+                <h3>Chat</h3>
+                <div class="chat-box" id="chatBox"></div>
+                <textarea id="messageInput" class="form-control mt-3" placeholder="Type a message"></textarea>
+                <button id="sendMessage" class="btn btn-primary mt-3">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
+    <script>
+        const socket = io('http://localhost:3000');
+        let selectedUser = null;
+        const currentUser = 'user1';  // Replace with the logged-in user
+
+        // Set the current logged-in user
+        socket.emit('setUser', currentUser);
+
+        // Listen for the user list update
+        socket.on('userList', users => {
+            const userListElement = document.getElementById('userList');
+            userListElement.innerHTML = '';
+            users.forEach(user => {
+                if (user !== currentUser) {
+                    const userElement = document.createElement('a');
+                    userElement.href = '#';
+                    userElement.className = 'list-group-item list-group-item-action';
+                    userElement.innerText = user;
+                    userElement.onclick = () => selectUser(user);
+                    userListElement.appendChild(userElement);
+                }
+            });
+        });
+
+        // Select a user to chat with
+        function selectUser(user) {
+            selectedUser = user;
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = ''; // Clear the chat area
+
+            // Fetch old messages between the two users
+            fetch(`/messages?from=${currentUser}&to=${selectedUser}`)
+                .then(response => response.json())
+                .then(messages => {
+                    messages.forEach(msg => {
+                        const messageElement = document.createElement('div');
+                        messageElement.innerText = `${msg.from}: ${msg.message}`;
+                        chatBox.appendChild(messageElement);
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+                });
+        }
+
+        // Send a new message
+        document.getElementById('sendMessage').addEventListener('click', () => {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value;
+            if (selectedUser && message) {
+                socket.emit('sendMessage', selectedUser, message);
+                messageInput.value = '';
+            }
+        });
+
+        // Listen for new messages
+        socket.on('newMessage', data => {
+            if (data.from === selectedUser) {
+                const chatBox = document.getElementById('chatBox');
+                const messageElement = document.createElement('div');
+                messageElement.innerText = `${data.from}: ${data.message}`;
+                chatBox.appendChild(messageElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>
